@@ -22,6 +22,7 @@ Description=A proxy server.
 package main
 
 import (
+	//"log"
 	"log"
 	"sync"
 
@@ -120,7 +121,7 @@ type DnotatedUnitHeader struct {
 	Annotations DnotatedUnit `yaml:"annotations"`
 }
 
-func ParseUnitHeader(data []byte) (DnotatedUnitHeader, error) {
+func ParseUnitHeader(data []byte) (*DnotatedUnitHeader, error) {
 	var yaml_header_lines []string
 	var header DnotatedUnitHeader
 	lines := strings.Split(string(data),"\n")
@@ -129,23 +130,29 @@ func ParseUnitHeader(data []byte) (DnotatedUnitHeader, error) {
 	var i int = 0
 	var line string
 	if len(lines) == 0 {
-		return header,fmt.Errorf("Unit file had no header.")
+		return nil,fmt.Errorf("Unit file had length 0")
 	}
 	for in_header {
 		line = lines[i]
-		if len(line) == 0 {
-			continue
-		}
-
-		if line[0] == '#' {
+		if len(line) > 0 && line[0] == '#' {
 			yaml_header_lines = append(yaml_header_lines, strings.TrimLeft(line, "#") )
 		} else {
 			in_header = false
 		}
+
 		i++
+		if i > len(lines) {
+			break
+		}
 	}
-	yaml.Unmarshal([]byte(strings.Join(yaml_header_lines, "\n")), &header)
-	return header, nil
+	if len(yaml_header_lines) == 0 {
+		return nil, fmt.Errorf("Found no header in file.\n")
+	}
+	err := yaml.Unmarshal([]byte(strings.Join(yaml_header_lines, "\n")), &header)
+	if err != nil {
+		return nil, err
+	}
+	return &header, nil
 }
 
 type DnotatedUnit struct {
@@ -158,27 +165,28 @@ type DnotatedUnit struct {
 
 func (u DnotatedUnit) String() string {
 	return fmt.Sprintf(`
-	Part of:\t%s
-	Component:\t%s
-	Version:\t%s
-	Managed by:\t%s
-	Hostname:\t%s
+	Part of:    %s
+	Component:  %s
+	Version:    %s
+	Managed by: %s
+	Hostname:   %s
 	---
 	`, u.PartOf,u.Component,u.Version,u.ManagedBy,u.Hostname)
 }
 
-func LoadDnotatedUnit(path string) (DnotatedUnit, error){
-	var unit DnotatedUnit
+func LoadDnotatedUnit(path string) (*DnotatedUnit, error){
 	data,err := os.ReadFile(path)
 	if err != nil {
-		return unit, err
+		return nil, err
 	}
+
 	header,err := ParseUnitHeader(data)
-	unit = header.Annotations
 	if err != nil {
-		return unit,err
+		return nil,err
 	}
-	return unit,nil
+
+	log.Printf("Successfully loaded %s\n", path)
+	return &header.Annotations,nil
 }
 
 func (s *DnotatedSystemd) ListUnits(ctx context.Context) (*[]DnotatedUnit, error) {
@@ -186,24 +194,28 @@ func (s *DnotatedSystemd) ListUnits(ctx context.Context) (*[]DnotatedUnit, error
 	if err != nil {
 		return nil,err
 	}
-	var units []DnotatedUnit = make([]DnotatedUnit, len(*files))
+	var units []DnotatedUnit
+	c := make(chan *DnotatedUnit, len(*files))
 	var wg sync.WaitGroup
-	for i,f := range *files {
+	for _,f := range *files {
 		wg.Add(1)
-		go func(file UnitFile, units *[]DnotatedUnit, index int){
+		go func(path string, out chan *DnotatedUnit) {
 			defer wg.Done()
-			fmt.Printf("Doing %s\n",file.Path)
-			unit, err := LoadDnotatedUnit(file.Path)
-			fmt.Printf("Loaded unit %s\n",file.Path)
+			unit, err := LoadDnotatedUnit(path)
 			if err != nil {
-				log.Printf("Failed to load unit at %s: %s\n", file.Path, err)
+				out <- nil
 				return
 			}
-			(*units)[index] = unit
-			fmt.Printf("Done with %s\n",file.Path)
-		}(f,&units,i)
+			out <- unit
+		}(f.Path, c)
 	}
 	wg.Wait()
+	for i:=0;i<len(*files);i++{
+		unit := <- c
+		if unit != nil {
+			units = append(units,*unit)
+		}
+	}
 	return &units,nil
 }
 
@@ -215,10 +227,11 @@ func main() {
 	s := DnotatedSystemd{conn}
 
 	units,err := s.ListUnits(ctx)
+	log.Printf("Loaded %v units\n",len(*units))
+	for _,u := range *units {
+		fmt.Println(u)
+	}
 	if err != nil {
 		panic(err)
-	}
-	for _,unit := range *units {
-		fmt.Printf("%s\n",unit)
 	}
 }
