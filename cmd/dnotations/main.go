@@ -22,10 +22,10 @@ Description=A proxy server.
 package main
 
 import (
-	"log"
-	"github.com/peder2911/dnotations/pkg/io"
 	"context"
-	"fmt"
+	"encoding/json"
+	"github.com/peder2911/dnotations/internal/cli"
+	"github.com/peder2911/dnotations/pkg/io"
 )
 
 func main() {
@@ -36,11 +36,10 @@ func main() {
 	}
 
 	units,err := s.ListUnits(ctx)
-	log.Printf("Loaded %v units\n",len(*units))
-	for _,u := range *units {
-		fmt.Println(u)
-	}
+	output_model := cli.DnotatedUnitsListing{Units:*units}
+	output,err := json.Marshal(output_model)
 	if err != nil {
 		panic(err)
 	}
+	print(string(output))
 }
