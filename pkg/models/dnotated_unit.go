@@ -1,4 +1,3 @@
-
 package models
 
 import (
@@ -21,5 +20,5 @@ func (u DnotatedUnit) String() string {
 	Managed by: %s
 	Hostname:   %s
 	---
-	`, u.PartOf,u.Component,u.Version,u.ManagedBy,u.Hostname)
+	`, u.PartOf, u.Component, u.Version, u.ManagedBy, u.Hostname)
 }

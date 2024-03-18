@@ -1,6 +1,4 @@
-/* Load dnotated units.
-
-*/
+// Load and parse dnotated units.
 package io
 
 import (
@@ -11,42 +9,45 @@ import (
 	"strings"
 )
 
+// Load a dnotated unit from a path by parsing the comment-
+// header in the file, if present.
+func LoadDnotatedUnit(path string) (*models.DnotatedUnit, error) {
 
-func LoadDnotatedUnit(path string) (*models.DnotatedUnit, error){
-	data,err := os.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	header,err := ParseUnitHeader(data)
+	header, err := ParseUnitHeader(data)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
-	return &header.Annotations,nil
+	return &header.Annotations, nil
 }
 
-
+// Expected YAML data in the comment header.
 type DnotatedUnitHeader struct {
 	Annotations models.DnotatedUnit `yaml:"annotations"`
 }
 
-
+// Parse a YAML document from the comment-header
+// in the provided data.
 func ParseUnitHeader(data []byte) (*DnotatedUnitHeader, error) {
 	var yaml_header_lines []string
 	var header DnotatedUnitHeader
-	lines := strings.Split(string(data),"\n")
+	lines := strings.Split(string(data), "\n")
 
 	var in_header bool = true
 	var i int = 0
 	var line string
 	if len(lines) == 0 {
-		return nil,fmt.Errorf("Unit file had length 0")
+		return nil, fmt.Errorf("Unit file had length 0")
 	}
 	for in_header {
 		line = lines[i]
 		if len(line) > 0 && line[0] == '#' {
-			yaml_header_lines = append(yaml_header_lines, strings.TrimLeft(line, "#") )
+			yaml_header_lines = append(yaml_header_lines, strings.TrimLeft(line, "#"))
 		} else {
 			in_header = false
 		}

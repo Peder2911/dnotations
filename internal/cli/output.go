@@ -1,4 +1,4 @@
-
+// Data models for creating JSON output.
 package cli
 
 import (

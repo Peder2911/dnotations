@@ -30,14 +30,14 @@ import (
 
 func main() {
 	ctx := context.Background()
-	s,err := io.NewDnotatedSystemd()
+	s, err := io.NewDnotatedSystemd()
 	if err != nil {
 		panic(err)
 	}
 
-	units,err := s.ListUnits(ctx)
-	output_model := cli.DnotatedUnitsListing{Units:*units}
-	output,err := json.Marshal(output_model)
+	units, err := s.ListUnits(ctx)
+	output_model := cli.DnotatedUnitsListing{Units: *units}
+	output, err := json.Marshal(output_model)
 	if err != nil {
 		panic(err)
 	}
