@@ -60,6 +60,7 @@ func (s *DnotatedSystemd) ListUnits(ctx context.Context) (*[]models.DnotatedUnit
 		unit := <-c
 		if unit != nil {
 			units = append(units, *unit)
+		} else {
 		}
 	}
 	return &units, nil

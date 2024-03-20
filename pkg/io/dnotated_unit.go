@@ -18,51 +18,50 @@ func LoadDnotatedUnit(path string) (*models.DnotatedUnit, error) {
 		return nil, err
 	}
 
-	header, err := ParseUnitHeader(data)
+	header, err := parseUnitHeader(data)
 	if err != nil {
 		return nil, err
 	}
-
 	return &header.Annotations, nil
 }
 
-// Expected YAML data in the comment header.
-type DnotatedUnitHeader struct {
-	Annotations models.DnotatedUnit `yaml:"annotations"`
-}
-
-// Parse a YAML document from the comment-header
-// in the provided data.
-func ParseUnitHeader(data []byte) (*DnotatedUnitHeader, error) {
-	var yaml_header_lines []string
-	var header DnotatedUnitHeader
-	lines := strings.Split(string(data), "\n")
-
-	var in_header bool = true
-	var i int = 0
-	var line string
-	if len(lines) == 0 {
-		return nil, fmt.Errorf("Unit file had length 0")
-	}
-	for in_header {
-		line = lines[i]
-		if len(line) > 0 && line[0] == '#' {
-			yaml_header_lines = append(yaml_header_lines, strings.TrimLeft(line, "#"))
-		} else {
-			in_header = false
-		}
-
-		i++
-		if i > len(lines) {
+// Parse out all header documents (separated by ---).
+func headerDocuments(data string) ([][]string){
+	var in_header bool
+	var documents [][]string = make([][]string,1)
+	var doc int
+	for _,line := range strings.Split(data, "\n") {
+		in_header = len(line) > 0 && line[0] == '#'
+		if ! in_header {
 			break
 		}
+		if line == "#---" {
+			documents = append(documents,make([]string,0))
+			continue
+		}
+		doc = len(documents)-1
+		documents[doc] = append(documents[doc],strings.TrimLeft(line, "#"))
 	}
-	if len(yaml_header_lines) == 0 {
-		return nil, fmt.Errorf("Found no header in file.\n")
+	return documents
+}
+
+// Parse out a unit header if it exists in the comment-header of the provided data.
+func parseUnitHeader(data []byte) (*dnotatedUnitHeader, error) {
+	docs := headerDocuments(string(data))
+	var header dnotatedUnitHeader
+	for _,doc := range docs {
+		if len(doc) == 0 {
+			continue
+		}
+		err := yaml.Unmarshal([]byte(strings.Join(doc,"\n")), &header)
+		if err == nil {
+			return &header, nil
+		}
 	}
-	err := yaml.Unmarshal([]byte(strings.Join(yaml_header_lines, "\n")), &header)
-	if err != nil {
-		return nil, err
-	}
-	return &header, nil
+	return nil, fmt.Errorf("No unit header found in file.")
+}
+
+// Expected YAML data in the comment header.
+type dnotatedUnitHeader struct {
+	Annotations models.DnotatedUnit `yaml:"annotations"`
 }

@@ -22,6 +22,7 @@ Description=A proxy server.
 package main
 
 import (
+	"fmt"
 	"context"
 	"encoding/json"
 	"github.com/peder2911/dnotations/internal/cli"
@@ -41,5 +42,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	print(string(output))
+	fmt.Print(string(output))
 }
